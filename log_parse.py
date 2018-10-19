@@ -1,33 +1,40 @@
 from dateutil import parser
 from collections import Counter, defaultdict
+import re 
+
+
+
+def check_line(log):
+    regexp = r'\d{2}\/\w{3}\/\d{4}\s\d{2}\:\d{2}\:\d{2}'
+    date=re.findall(regexp,log)
+    if len(date)!=0:
+        return True
+    else:
+        return False    
+
+
+
+
+
+def get_date(log):
+    regexp = r'\d{2}\/\w{3}\/\d{4}\s\d{2}\:\d{2}\:\d{2}'
+    date = re.findall(regexp,log)
+    return date[0]
+            
+
+def get_url(log):
+    regexp = r'\w{4,5}[://]{3}(.+)\?'
+    url = re.findall(regexp,log)
+    if len(url)==0:
+        regexp = r'\w{4,5}[://]{3}(\S+)'
+        url = re.findall(regexp,log)
+    return url[0]
 
 def reader(filename):
 
     file=open(filename) 
     lines=file.readlines()
     return lines
-
-
-def get_datetime(log):
-    dt = parser.parse(log[1:21])      
-    return dt
-        
-            
-def get_file(log):
-    if '/'!=log[len(log)-1]:
-        if '.' == log[len(log)-4] or '.' == log[len(log)-3]:
-            return True
-        else:
-            return False
-    else: 
-        return False    
-    
-def get_url(log): 
-    if '?' in log and '://' in log:
-        url=log[log.index('://')+3:log.index('?')]
-    elif '://' in log and ' ' in log:
-        url=log[log.index('://')+3:log.index(' ', log.index('://'))]
-    return url
 
 def top_five(logs):    
     
@@ -36,19 +43,39 @@ def top_five(logs):
         print(count) 
             
 
-def get_type(log):
-    log=log[log.index('"')+1:log.index(' ', log.index('"'))]
-    return log
 
 def get_response_time(log):
     return int(log.split()[-1])
 
 def get_withoutwww(log):
-    if log[0:4]=='www.':
-        return log[4:]
+    regexp = r'[www.]{4}(\S+)'
+    withoutwww = re.findall(regexp,log)
+    if len(withoutwww)!=0:
+        return withoutwww[0]
     else:
-        return log
-        
+        return log   
+
+
+def get_type(log):
+    regexp = r'\"(\w{3,4})'
+    tp=re.findall(regexp,log)
+    return tp[0]
+
+def check_file(log):
+    regexp = r'\/.+\.\w{2,3}'
+    fl=re.findall(regexp,log)
+    if len(fl)!=0:
+        return True
+    else:
+        return False 
+
+def get_resptime(log):
+    regexp = r' \d{3} (\d{2,6})'
+    resptime=re.findall(regexp,log)
+    return resptime[0]
+
+
+
 
 def parse1(
     ignore_files=False,
@@ -65,25 +92,23 @@ def parse1(
     slow = defaultdict(lambda: [0, 0])
 
     for line in lines:
-        if line[0]=='[' and  line[21]==']':
-
-            typ = get_type(line)
-            url = get_url(line)
-            file = get_file(url)
-            time = get_datetime(line)
-            rtime = get_response_time(line)
-            
+        if check_line(line)==True:
+            date=get_date(line)
+            url=get_url(line)
+            tp=get_type(line)
+            resptime=int(get_resptime(line))
+            file=check_file(url)
+            print(file)
             if ignore_www == True:
                 url = get_withoutwww(url)
 
             if (file == False or ignore_files == False) and\
-            (type == request_type or request_type == None) and\
-            (start_at == None or time >= start_at) and\
-            (stop_at == None or time <= stop_at):
-
+            (tp == request_type or request_type == None) and\
+            (start_at == None or date >= start_at) and\
+            (stop_at == None or date <= stop_at):
                 c[url] += 1
                 slow[url][0] += 1
-                slow[url][1] += rtime
+                slow[url][1] += resptime
                 
     if slow_queries == True:
         for each in slow:
@@ -96,6 +121,7 @@ def parse1(
     
     print(res_arr)
     return res_arr  
+            
 
 if __name__ == '__main__':
     parse1()  
